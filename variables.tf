@@ -1,23 +1,13 @@
-terraform {
-  experiments = [variable_validation]
-}
-
 variable "name" {
   type        = string
   description = "Name that will be used in resources names and tags."
   default     = "terraform-aws-vpc-public-private"
 }
 
-variable "create_vpc" {
-  type        = bool
-  description = "Create personal VPC."
-  default     = true
-}
-
 variable "all_availability_zones" {
   type        = bool
   description = "Use all Availability Zones in the VPC. Will use 2 AZ if \"false\"."
-  default     = true
+  default     = false 
 }
 
 variable "create_nat_gateway" {

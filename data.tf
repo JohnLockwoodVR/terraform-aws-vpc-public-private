@@ -28,16 +28,3 @@ data "aws_iam_policy_document" "role_policy_cloudwatch" {
   }
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnet_ids" "default" {
-  vpc_id = data.aws_vpc.default.id
-}
-
-data "aws_subnet" "default" {
-  count = var.all_availability_zones ? length(data.aws_subnet_ids.default.ids) : 2
-
-  id = element(tolist(data.aws_subnet_ids.default.ids), count.index)
-}

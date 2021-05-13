@@ -1,5 +1,7 @@
 locals {
-  availability_zones_count = var.all_availability_zones ? length(data.aws_availability_zones.this.zone_ids) : 2
+  availability_zones = ["us-east-2a", "us-east-2b", "us-east-2c"]
+
+  availability_zones_count = var.all_availability_zones ? length(local.availability_zones) : 2
 
   nat_gateways_count = var.nat_gateway_for_each_subnet ? local.availability_zones_count : 1
 
@@ -22,7 +24,7 @@ resource "random_id" "this" {
 }
 
 resource "aws_vpc" "this" {
-  count = var.create_vpc ? 1 : 0
+  count = 1 
 
   cidr_block           = var.cidr_block
   enable_dns_hostnames = true
@@ -40,13 +42,13 @@ resource "aws_vpc" "this" {
 }
 
 resource "aws_flow_log" "this" {
-  count = var.create_vpc && var.flow_log_enable ? 1 : 0
+  count = var.flow_log_enable ? 1 : 0
 
   iam_role_arn         = local.aws_flog_log_iam_role_arn
   log_destination      = local.aws_flog_log_destination
   log_destination_type = local.aws_flog_log_destination_type
   traffic_type         = "ALL"
-  vpc_id               = var.create_vpc ? aws_vpc.this[0].id : data.aws_vpc.default.id
+  vpc_id               = aws_vpc.this[0].id 
 
   lifecycle {
     create_before_destroy = true
@@ -54,7 +56,7 @@ resource "aws_flow_log" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "this" {
-  count = var.create_vpc && var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
+  count = var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
 
   name              = "${var.name}-flow-log-${random_id.this.hex}"
   retention_in_days = 14
@@ -71,7 +73,7 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_s3_bucket" "this" {
-  count = var.create_vpc && var.flow_log_enable && var.flow_log_destination == "s3" ? 1 : 0
+  count = var.flow_log_enable && var.flow_log_destination == "s3" ? 1 : 0
 
   bucket = "${var.name}-flow-log-${random_id.this.hex}"
 
@@ -87,7 +89,7 @@ resource "aws_s3_bucket" "this" {
 }
 
 resource "aws_iam_role" "this" {
-  count = var.create_vpc && var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
+  count = var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
 
   name = "${var.name}-flow-log-${random_id.this.hex}"
 
@@ -107,7 +109,7 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy" "this" {
-  count = var.create_vpc && var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
+  count = var.flow_log_enable && var.flow_log_destination == "cloudwatch" ? 1 : 0
 
   name = "${var.name}-flow-log-${random_id.this.hex}"
 
@@ -120,7 +122,7 @@ resource "aws_iam_role_policy" "this" {
 }
 
 resource "aws_internet_gateway" "this" {
-  count = var.create_vpc ? 1 : 0
+  count = 1
 
   vpc_id = aws_vpc.this[0].id
 
@@ -136,7 +138,7 @@ resource "aws_internet_gateway" "this" {
 }
 
 resource "aws_eip" "nat" {
-  count = var.create_vpc ? local.nat_gateways_count : 0
+  count = local.nat_gateways_count 
 
   vpc = true
 
@@ -153,7 +155,7 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "nat" {
-  count = var.create_vpc && var.create_nat_gateway ? local.nat_gateways_count : 0
+  count = var.create_nat_gateway ? local.nat_gateways_count : 0
 
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = local.nat_gateways_count == 1 ? aws_subnet.public[0].id : aws_subnet.public[count.index].id
@@ -170,9 +172,9 @@ resource "aws_nat_gateway" "nat" {
 }
 
 resource "aws_subnet" "public" {
-  count = var.create_vpc ? local.availability_zones_count : 0
+  count = local.availability_zones_count 
 
-  availability_zone       = data.aws_availability_zones.this.names[count.index]
+  availability_zone       = local.availability_zones[count.index]
   cidr_block              = cidrsubnet(var.cidr_block, 4, count.index + local.subnet_netnum_factor.public)
   map_public_ip_on_launch = true
   vpc_id                  = aws_vpc.this[0].id
@@ -191,7 +193,7 @@ resource "aws_subnet" "public" {
 }
 
 resource "aws_route_table" "public" {
-  count = var.create_vpc ? 1 : 0
+  count = 1 
 
   vpc_id = aws_vpc.this[0].id
 
@@ -209,7 +211,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route" "public" {
-  count = var.create_vpc ? 1 : 0
+  count = 1 
 
   route_table_id         = aws_route_table.public[0].id
   destination_cidr_block = "0.0.0.0/0"
@@ -221,7 +223,7 @@ resource "aws_route" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count = var.create_vpc ? local.availability_zones_count : 0
+  count = local.availability_zones_count
 
   route_table_id = aws_route_table.public[0].id
   subnet_id      = aws_subnet.public[count.index].id
@@ -232,7 +234,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_subnet" "private" {
-  count = var.create_vpc ? local.availability_zones_count : 0
+  count = local.availability_zones_count
 
   availability_zone       = data.aws_availability_zones.this.names[count.index]
   cidr_block              = cidrsubnet(var.cidr_block, 4, count.index + local.subnet_netnum_factor.private)
@@ -254,7 +256,7 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_route_table" "private" {
-  count = var.create_vpc ? 1 : 0
+  count = 1
 
   vpc_id = aws_vpc.this[0].id
 
@@ -272,7 +274,7 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route" "private" {
-  count = var.create_vpc && var.create_nat_gateway ? local.nat_gateways_count : 0
+  count = var.create_nat_gateway ? local.nat_gateways_count : 0
 
   route_table_id         = aws_route_table.private[0].id
   destination_cidr_block = "0.0.0.0/0"
@@ -284,7 +286,7 @@ resource "aws_route" "private" {
 }
 
 resource "aws_route_table_association" "private" {
-  count = var.create_vpc ? local.availability_zones_count : 0
+  count = local.availability_zones_count 
 
   route_table_id = aws_route_table.private[0].id
   subnet_id      = aws_subnet.private[count.index].id
