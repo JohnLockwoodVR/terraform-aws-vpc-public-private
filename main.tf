@@ -180,7 +180,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.this[0].id
 
   tags = {
-    Name = var.name
+    Name = "${var.name}-public-subnet-${count.index +1}"
 
     Module     = path.module
     Workspace  = terraform.workspace
@@ -242,7 +242,7 @@ resource "aws_subnet" "private" {
   vpc_id                  = aws_vpc.this[0].id
 
   tags = {
-    Name = var.name
+    Name = "${var.name}-private-subnet-${count.index + 1}"
 
     Module     = path.module
     Workspace  = terraform.workspace

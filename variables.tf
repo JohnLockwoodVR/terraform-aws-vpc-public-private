@@ -1,7 +1,7 @@
 variable "name" {
   type        = string
   description = "Name that will be used in resources names and tags."
-  default     = "terraform-aws-vpc-public-private"
+  default     =  "terraformed-vpc"
 }
 
 variable "all_availability_zones" {
